@@ -1,10 +1,11 @@
 pub mod keyboard;
 pub mod screen;
 pub mod shell;
+pub mod runner;
 
 use screen::Screen;
 use color_eyre::Result;
-use keyboard::KeyCode;
+use keyboard::{KeyCode, KeyAction};
 
 
 
@@ -41,35 +42,41 @@ impl Emulator {
 
     pub fn send_keypress(&mut self, key: keyboard::KeyPress) {
         match key {
-            keyboard::KeyPress{ code, ..} => {
-                match code {
-                    KeyCode::Backspace => self.screen.handle_backspace(),
-                    KeyCode::Enter => self.screen.handle_new_line(),
-                    KeyCode::Left => self.screen.handle_cur_left(),
-                    KeyCode::Right => self.screen.handle_cur_right(),
-                    KeyCode::Up => self.screen.handle_cur_up(),
-                    KeyCode::Down => self.screen.handle_cur_down(),
-                    KeyCode::Home => self.screen.handle_cur_left_max(),
-                    KeyCode::End => self.screen.handle_cur_right_max(),
-                    KeyCode::PageUp => (),
-                    KeyCode::PageDown => (),
-                    KeyCode::Tab => (),
-                    KeyCode::BackTab => todo!(),
-                    KeyCode::Delete => (),
-                    KeyCode::Insert => (),
-                    KeyCode::F(_) => (),
-                    KeyCode::Char(c) => self.screen.putc(c),
-                    KeyCode::Null => (),
-                    KeyCode::Esc => (),
-                    KeyCode::CapsLock => (),
-                    KeyCode::ScrollLock => (),
-                    KeyCode::NumLock => (),
-                    KeyCode::PrintScreen => (),
-                    KeyCode::Pause => (),
-                    KeyCode::Menu => (),
-                    KeyCode::KeypadBegin => (),
-                    KeyCode::Media(_) => (),
-                    KeyCode::Modifier(_) => (),
+            keyboard::KeyPress{ code, action } => {
+                match action {
+                    KeyAction::Press |
+                    KeyAction::Repeat => {
+                        match code {
+                            KeyCode::Backspace => self.screen.handle_backspace(),
+                            KeyCode::Enter => self.screen.handle_new_line(),
+                            KeyCode::Left => self.screen.handle_cur_left(),
+                            KeyCode::Right => self.screen.handle_cur_right(),
+                            KeyCode::Up => self.screen.handle_cur_up(),
+                            KeyCode::Down => self.screen.handle_cur_down(),
+                            KeyCode::Home => self.screen.handle_cur_left_max(),
+                            KeyCode::End => self.screen.handle_cur_right_max(),
+                            KeyCode::PageUp => (),
+                            KeyCode::PageDown => (),
+                            KeyCode::Tab => (),
+                            KeyCode::BackTab => todo!(),
+                            KeyCode::Delete => (),
+                            KeyCode::Insert => (),
+                            KeyCode::F(_) => (),
+                            KeyCode::Char(c) => self.screen.putc(c),
+                            KeyCode::Null => (),
+                            KeyCode::Esc => (),
+                            KeyCode::CapsLock => (),
+                            KeyCode::ScrollLock => (),
+                            KeyCode::NumLock => (),
+                            KeyCode::PrintScreen => (),
+                            KeyCode::Pause => (),
+                            KeyCode::Menu => (),
+                            KeyCode::KeypadBegin => (),
+                            KeyCode::Media(_) => (),
+                            KeyCode::Modifier(_) => (),
+                        }
+                    }
+                    KeyAction::Release => (),
                 }
             }
         }
