@@ -1,16 +1,14 @@
 pub mod keyboard;
+pub mod screen;
+pub mod shell;
 
+use screen::Screen;
 use color_eyre::Result;
+use keyboard::KeyCode;
 
-pub const SCREEN_SIZE: usize = 60*80;
 
 
-struct Screen {
-    text: String,
-    height: usize,
-    width: usize,
-    cur_col: usize
-}
+
 
 pub struct Emulator {
     screen: Screen
@@ -21,11 +19,11 @@ impl Emulator {
     pub fn new(screen_size: (usize, usize)) -> Self {
         Self {
             screen: Screen{
-                text: String::with_capacity(SCREEN_SIZE),
+                text: String::with_capacity(screen_size.0 * screen_size.1),
                 height: screen_size.1,
                 width: screen_size.0,
-                cur_col: 0
-
+                cur_col: vec![0; 100],
+                cur_line: 0
             },
         }
     }
@@ -36,32 +34,47 @@ impl Emulator {
     }
 
     pub fn step(&mut self) -> Result<()> {
-        self.puts("a");
+        // self.puts("a");
         Ok(())
     }
 
 
-    pub fn putc(&mut self, c: char) {
-
-        if self.screen.cur_col >= self.screen.width {
-            self.screen.text.push('\n');
-            self.screen.cur_col = 0;
-
-        }
-
-        self.screen.text.push(c);
-        self.screen.cur_col += 1;
-
-    }
-
-    pub fn puts(&mut self, s: &str) {
-        for c in s.chars() {
-            self.putc(c);
-        }
-    }
-
     pub fn send_keypress(&mut self, key: keyboard::KeyPress) {
-        // println!("{key:?}");
+        match key {
+            keyboard::KeyPress{ code, ..} => {
+                match code {
+                    KeyCode::Backspace => self.screen.handle_backspace(),
+                    KeyCode::Enter => self.screen.handle_new_line(),
+                    KeyCode::Left => self.screen.handle_cur_left(),
+                    KeyCode::Right => self.screen.handle_cur_right(),
+                    KeyCode::Up => self.screen.handle_cur_up(),
+                    KeyCode::Down => self.screen.handle_cur_down(),
+                    KeyCode::Home => self.screen.handle_cur_left_max(),
+                    KeyCode::End => self.screen.handle_cur_right_max(),
+                    KeyCode::PageUp => (),
+                    KeyCode::PageDown => (),
+                    KeyCode::Tab => (),
+                    KeyCode::BackTab => todo!(),
+                    KeyCode::Delete => (),
+                    KeyCode::Insert => (),
+                    KeyCode::F(_) => (),
+                    KeyCode::Char(c) => self.screen.putc(c),
+                    KeyCode::Null => (),
+                    KeyCode::Esc => (),
+                    KeyCode::CapsLock => (),
+                    KeyCode::ScrollLock => (),
+                    KeyCode::NumLock => (),
+                    KeyCode::PrintScreen => (),
+                    KeyCode::Pause => (),
+                    KeyCode::Menu => (),
+                    KeyCode::KeypadBegin => (),
+                    KeyCode::Media(_) => (),
+                    KeyCode::Modifier(_) => (),
+                }
+            }
+        }
+
+        // self.screen.puts(format!("{:?}\n", key))
     }
 
     pub fn set_screen_size(&mut self, width: usize, height: usize) {
