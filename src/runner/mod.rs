@@ -1,8 +1,21 @@
+use std::sync::Mutex;
 
 
 
-static mut prog_mem: &[u8; 1024*1024] = &[0; 1024*1024]; // 1mb
+
+pub static mut PROG_MEM: Mutex<&[u8; 1024*1024]> = Mutex::new(&[0; 1024*1024]); // 1mb
 
 struct Runner {
 
+}
+
+impl Runner {
+    pub fn new() -> Self{
+
+        
+
+        Self {
+
+        }
+    }
 }

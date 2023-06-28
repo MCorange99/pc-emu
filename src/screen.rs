@@ -8,7 +8,7 @@ pub struct Screen {
 }
 
 impl Screen {
-    pub fn handle_new_line(&mut self) {
+    pub fn handle_new_line(&mut self, add_new_line: bool) {
         self.cur_col[self.cur_line] = 0;
         
         if self.cur_line >= self.height {
@@ -23,6 +23,10 @@ impl Screen {
 
         } else {
             self.cur_line += 1;
+        }
+
+        if add_new_line {
+            self.text.push('\n');
         }
     }
 
@@ -74,11 +78,10 @@ impl Screen {
     pub fn putc(&mut self, c: char) {
 
         if c == '\n' {
-            self.handle_new_line();
+            self.handle_new_line(false);
         } else
         if self.cur_col[self.cur_line] >= self.width {
-            self.handle_new_line();
-            self.text.push('\n');
+            self.handle_new_line(true);
         }
 
         self.text.push(c);

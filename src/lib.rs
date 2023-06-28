@@ -48,7 +48,7 @@ impl Emulator {
                     KeyAction::Repeat => {
                         match code {
                             KeyCode::Backspace => self.screen.handle_backspace(),
-                            KeyCode::Enter => self.screen.handle_new_line(),
+                            KeyCode::Enter => self.screen.handle_new_line(true),
                             KeyCode::Left => self.screen.handle_cur_left(),
                             KeyCode::Right => self.screen.handle_cur_right(),
                             KeyCode::Up => self.screen.handle_cur_up(),
