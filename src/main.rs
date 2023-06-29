@@ -1,4 +1,3 @@
-#![feature(allow_internal_unstable)]
 use color_eyre::Result;
 use hadley_game::runner::machine_status_bits;
 use std::time::Duration;
