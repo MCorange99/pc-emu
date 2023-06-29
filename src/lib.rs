@@ -1,6 +1,5 @@
 pub mod keyboard;
 pub mod screen;
-pub mod shell;
 pub mod runner;
 pub mod libs;
 
@@ -15,7 +14,7 @@ use keyboard::{KeyCode, KeyAction};
 
 pub struct Emulator {
     pub screen: Screen,
-    pub runner: Runner
+    pub runner: Runner,
 }
 
 impl Emulator {
@@ -35,20 +34,27 @@ impl Emulator {
         s
     }
 
+    pub fn init(&mut self) {
+        self.runner.shell.start();
+    }
 
 
     pub fn step(&mut self) -> Result<()> {
-        // self.puts("a");
+        self.runner.shell.step(&mut self.screen)?;
+
         Ok(())
     }
 
 
     pub fn send_keypress(&mut self, key: keyboard::KeyPress) {
-        match key {
+        match key.clone() {
             keyboard::KeyPress{ code, action } => {
                 match action {
                     KeyAction::Press |
                     KeyAction::Repeat => {
+
+                        // simple_event!(KeyboardEvent, keyboard::KeyPress, key);
+                        self.runner.shell.kb_event(key);
                         match code {
                             KeyCode::Backspace => self.screen.handle_backspace(),
                             KeyCode::Enter => self.screen.handle_new_line(true),

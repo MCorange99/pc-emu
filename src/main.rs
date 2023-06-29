@@ -1,4 +1,6 @@
+#![feature(allow_internal_unstable)]
 use color_eyre::Result;
+use hadley_game::runner::machine_status_bits;
 use std::time::Duration;
 
 use ratatui::{
@@ -29,7 +31,7 @@ fn main() -> Result<()> {
 
     let mut engine = hadley_game::Emulator::new((0, 0));
 
-
+    engine.init();
     loop {
         draw_tui(&mut terminal, &mut engine)?;
         // std::thread::sleep(std::time::Duration::from_millis(1000));
@@ -60,6 +62,13 @@ fn main() -> Result<()> {
                 let time_to_wait = time_to_block - time_now.duration_since(time_started)?;
                 std::thread::sleep(time_to_wait);
             }
+        }
+        let should_exit = unsafe {
+            let status = *hadley_game::runner::MACHINE_STATUS.lock().unwrap().get();
+            status & machine_status_bits::MS_SHOULD_EXIT == machine_status_bits::MS_SHOULD_EXIT
+        };
+        if should_exit {
+            break;
         }
     }
     
@@ -180,13 +189,14 @@ fn draw_tui<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, engine: &m
         f.render_widget(Paragraph::new(vec![
             Line::from(Span::raw(format!("cur_pos: ({}, {})", cur_line, engine.screen.cur_col[cur_line] ))),
             Line::from(Span::raw(format!("cur_cols:"))),
-            Line::from(Span::raw(format!("0: {}\n",engine.screen.cur_col[0] ))),
-            Line::from(Span::raw(format!("1: {}\n",engine.screen.cur_col[1] ))),
-            Line::from(Span::raw(format!("2: {}\n",engine.screen.cur_col[2] ))),
-            Line::from(Span::raw(format!("3: {}\n",engine.screen.cur_col[3] ))),
-            Line::from(Span::raw(format!("4: {}\n",engine.screen.cur_col[4] ))),
-            Line::from(Span::raw(format!("5: {}\n",engine.screen.cur_col[5] ))),
-            Line::from(Span::raw(format!("6: {}\n",engine.screen.cur_col[6] )))
+            Line::from(Span::raw(format!("  0: {}\n",engine.screen.cur_col[0] ))),
+            Line::from(Span::raw(format!("  1: {}\n",engine.screen.cur_col[1] ))),
+            Line::from(Span::raw(format!("  2: {}\n",engine.screen.cur_col[2] ))),
+            Line::from(Span::raw(format!("  3: {}\n",engine.screen.cur_col[3] ))),
+            Line::from(Span::raw(format!("  4: {}\n",engine.screen.cur_col[4] ))),
+            Line::from(Span::raw(format!("  5: {}\n",engine.screen.cur_col[5] ))),
+            Line::from(Span::raw(format!("  6: {}\n",engine.screen.cur_col[6] ))),
+            Line::from(Span::raw(format!("inp_buf: {:?}\n",engine.runner.shell.input_buf )))
         ]), debug_text);
 
         f.render_widget(term_block, box_chunks[0]);

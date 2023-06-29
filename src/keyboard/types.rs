@@ -1,13 +1,13 @@
 use bitflags::bitflags;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KeyPress {
     pub code: KeyCode,
     pub action: KeyAction,
     // pub modifier: KeyModifiers
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum KeyAction {
     Press,
     Release,

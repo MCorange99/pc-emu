@@ -1,5 +1,6 @@
 use color_eyre::Result;
 
+#[derive(Debug, Clone)]
 pub struct Screen {
     pub height: usize,
     pub width: usize,
@@ -35,11 +36,11 @@ impl Screen {
         // }
 
 
-        chars.copy_from_slice(s_chars);
+        // chars.copy_from_slice(s_chars);
         
-        // for (i, c) in s_chars.iter().enumerate() {
-        //     chars[i] = *c;
-        // }
+        for (i, c) in s_chars.iter().enumerate() {
+            chars[i] = *c;
+        }
     }
 
     pub fn handle_new_line(&mut self, add_new_line: bool) {
@@ -137,8 +138,7 @@ impl Screen {
 
     }
 
-    pub fn puts<S: Into<String>>(&mut self, s: S) {
-        let s: String = s.into();
+    pub fn puts(&mut self, s: String) {
         for c in s.chars() {
             self.putc(c);
         }
@@ -148,4 +148,11 @@ impl Screen {
     // pub fn read_screen() -> String {
     // }
 
+}
+
+impl std::fmt::Write for Screen {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        self.puts(s.to_string());
+        Ok(())
+    }
 }

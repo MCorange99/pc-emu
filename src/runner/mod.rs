@@ -1,6 +1,15 @@
+mod fs;
+mod shell;
+
 use std::sync::{Mutex, MutexGuard};
 use std::cell::UnsafeCell;
 
+
+pub mod machine_status_bits {
+    pub const MS_SHOULD_EXIT: usize = 0b0000_0001;
+}
+
+pub static mut MACHINE_STATUS: Mutex<UnsafeCell<usize>> = Mutex::new(UnsafeCell::new(0));
 
 pub static mut PROG_MEM: Mutex<UnsafeCell<[u8; 1024 * 1024]>> = Mutex::new(UnsafeCell::new([0; 1024 * 1024]));// 1mb
 
@@ -16,15 +25,18 @@ pub unsafe fn get_prog_mem<'a>() -> &'a mut [u8]{
     &mut *prog_mem.get()
 }
 
-
+#[derive(Debug, Clone)]
 pub struct Runner {
-
+    // fs: fs::Fs,
+    pub shell: shell::Shell
+    
 }
 
 impl Runner {
     pub fn new() -> Self{
         Self {
-
+            // fs: fs::Fs::new(),
+            shell: shell::Shell::new(),
         }
     }
 
