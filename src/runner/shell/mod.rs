@@ -2,7 +2,7 @@ pub mod builtin;
 mod util;
 
 use crate::{keyboard::KeyPress, screen::Screen};
-use std::{fmt::Write, sync::Mutex};
+use std::{fmt::Write, sync::Mutex, path::PathBuf};
 use color_eyre::Result;
 use lazy_static::lazy_static;
 use shlex;
@@ -20,7 +20,8 @@ pub struct Shell {
     // emulator: Emulator,
     pub reading_input: bool,
     pub input_buf: String,
-    pub should_exit: bool
+    pub should_exit: bool,
+    pub cwd: PathBuf
 }
 
 impl Shell {
@@ -29,7 +30,8 @@ impl Shell {
             // emulator: e,
             reading_input: false,
             input_buf: String::new(),
-            should_exit: false
+            should_exit: false,
+            cwd: PathBuf::from("/"),
         }
     }
 
@@ -44,26 +46,35 @@ impl Shell {
         if !self.input_buf.trim().is_empty() {
             
             let argv: Vec<String> = shlex::split(self.input_buf.trim()).unwrap();
-            let (_is_builtin, _ret) = builtin::run_command(screen, argv)?;
+            let (_is_builtin, _ret) = builtin::run_command(screen, self, argv)?;
         }
         
 
         self.input_buf.clear();
-        write!(screen, "[shell] >>")?;
+        write!(screen, "[{}] >>", self.cwd.to_str().unwrap())?;
         self.reading_input = true;
         Ok(())
     }
     
 
-    pub fn kb_event(&mut self, kp: KeyPress) {
+    pub fn kb_event(&mut self, screen: &mut Screen, kp: KeyPress) {
         match kp.code {
             crate::keyboard::KeyCode::Char(chr) => {
+                if self.input_buf.is_empty() {
+                    screen.disable_deleting = false;
+                }
                 self.input_buf.push(chr);
             }
             crate::keyboard::KeyCode::Backspace => {
+                if self.input_buf.is_empty() {
+                    screen.disable_deleting = true;
+                }
                 self.input_buf.pop();
             }
             crate::keyboard::KeyCode::Enter => {
+                if self.input_buf.is_empty() {
+                    screen.disable_deleting = false;
+                }
                 self.reading_input = false;
             },
             _ => ()

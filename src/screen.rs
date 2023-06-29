@@ -6,7 +6,8 @@ pub struct Screen {
     pub width: usize,
     // pub cur_col: usize,
     pub cur_line: usize,
-    pub cur_col: Vec<usize>
+    pub cur_col: Vec<usize>,
+    pub disable_deleting: bool
 }
 
 impl Screen {
@@ -66,6 +67,10 @@ impl Screen {
     }
 
     pub fn handle_backspace(&mut self) {
+        if self.disable_deleting {
+            return;
+        }
+
         if self.cur_col[self.cur_line] > 0 {
             self.delete_char_from_line(self.cur_line);
             self.cur_col[self.cur_line] -= 1;

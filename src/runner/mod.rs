@@ -1,6 +1,7 @@
 mod fs;
 mod shell;
 
+use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 use std::cell::UnsafeCell;
 
@@ -34,6 +35,10 @@ pub struct Runner {
 
 impl Runner {
     pub fn new() -> Self{
+        if !PathBuf::from("./fs").exists() {
+            std::fs::create_dir(PathBuf::from("./fs")).unwrap();
+        }
+
         Self {
             // fs: fs::Fs::new(),
             shell: shell::Shell::new(),

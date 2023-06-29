@@ -24,7 +24,8 @@ impl Emulator {
                 height: screen_size.1,
                 width: screen_size.0,
                 cur_col: vec![0; 100],
-                cur_line: 0
+                cur_line: 0,
+                disable_deleting: false,
             },
             runner: runner::Runner::new()
         };
@@ -54,7 +55,7 @@ impl Emulator {
                     KeyAction::Repeat => {
 
                         // simple_event!(KeyboardEvent, keyboard::KeyPress, key);
-                        self.runner.shell.kb_event(key);
+                        self.runner.shell.kb_event(&mut self.screen, key);
                         match code {
                             KeyCode::Backspace => self.screen.handle_backspace(),
                             KeyCode::Enter => self.screen.handle_new_line(true),

@@ -1,74 +1,87 @@
-// use std::{collections::HashMap, hash::Hash, path::PathBuf};
-// use color_eyre::{Result, eyre::eyre};
-
-// #[derive(Debug, Clone)]
-// struct FsEntry {
-//     files: Option<HashMap<String, FsEntry>>,
-//     typ: FileType,
-//     data: Vec<u8>
-// }
-// #[derive(Debug, Clone)]
-// enum FileType {
-//     Folder(Box<FsEntry>),
-//     File
-// }
 
 
-// ///
-// /// Folders end with /
-// /// ! CURRENTLY BROKEN
-// #[derive(Debug, Clone)]
-// pub struct Fs {
-//     files: HashMap<String, FsEntry>
-// }
+// struct HgPath(PathBuf);
 
-// impl Fs {
-//     pub fn new() -> Self{
-//         Self {
-//             files: HashMap::new(),
-//         }
+// impl HgPath {
+//     pub fn new() -> Self {
+//         Self(PathBuf::new())
 //     }
 
-//     // pub fn follow_path(&mut self, path: String) -> &mut FsEntry {
-//     //     let mut path_parts: Vec<&str> = path.split("/").collect();
-//     //     path_parts.reverse();
-//     //     path_parts.pop();
+//     pub fn join<P: AsRef<Path>>(mut self, p: P) -> Self {
+//         // let host_path = std::env::current_dir().unwrap();
+//         // let p = p.as_ref();
+//         // if p.is_absolute() {
+//         //     let p = p.to_str().unwrap();
+//         //     p = format!(".{p}").as_str();
+            
+//         // }
+        
+//         // self.join(p)
+//         self.0 = self.0.join(p);
+//         self
+//     }
 
-//     //     let mut f_ptr = &self.files;
 
-//     //     for p in path_parts {
-//     //         if let Some(f) = f_ptr.get(&format!("{p}/")) {
-//     //             f_ptr = if let Some(f) = &f.files {f} else {
-//     //                 return Err(eyre!("Folder is a file"));
-//     //             };
-//     //         } else {
-//     //             return Err(eyre!("Folder does not exist"));
-//     //         }
-//     //     };
-//     // }
+// }
 
-//     pub fn new_file(&mut self, path: String, name: String) -> Result<()> {
-//         let mut path_parts: Vec<&str> = path.split("/").collect();
-//         path_parts.reverse();
-//         path_parts.pop();
-
-//         let mut f_ptr = &self.files;
-
-//         for p in path_parts {
-//             if let Some(f) = f_ptr.get(&format!("{p}/")) {
-//                 f_ptr = if let Some(f) = &f.files {f} else {
-//                     return Err(eyre!("Folder is a file"));
-//                 }
-//             } else {
-//                 return Err(eyre!("Folder does not exist"));
-//             }
-//         }
-
-//         self.files.insert(name, FsEntry {
-//             files: None,
-//             typ: FileType::File,
-//             data: Vec::new()
-//         });
-//         Ok(())
+// impl From<PathBuf> for HgPath {
+//     fn from(value: PathBuf) -> Self {
+//         HgPath(value)
 //     }
 // }
+
+// impl From<String> for HgPath {
+//     fn from(value: String) -> Self {
+//         HgPath(PathBuf::from(value))
+//     }
+// }
+
+// impl From<&str> for HgPath {
+//     fn from(value: &str) -> Self {
+//         HgPath(PathBuf::from(value))
+//     }
+// }
+
+// impl From<&Path> for HgPath {
+//     fn from(value: &Path) -> Self {
+//         HgPath(PathBuf::from(value))
+//     }
+// }
+
+use std::path::PathBuf;
+
+pub trait HgPath{
+    fn get_host_path(&mut self) -> PathBuf;
+    fn simplify(&mut self) -> PathBuf;
+}
+
+
+impl HgPath for PathBuf {
+    fn get_host_path(&mut self) -> PathBuf {
+        let host_path = std::env::current_dir().unwrap().join("fs");
+        if self.is_absolute() {
+            let p = &self.to_str().unwrap()[1..];
+            return host_path.join(p);
+        } else {
+            let p = PathBuf::from(&self.simplify().to_str().unwrap());
+
+            return host_path.join(p);
+        }
+    }
+
+    fn simplify(&mut self) -> PathBuf {
+        let mut buf = PathBuf::new();
+        for p in self.components() {
+            let p = p.as_os_str().to_str().unwrap();
+            if p == "." {
+                // do nothin
+            } else
+            if p == ".." {
+                buf.pop();
+            } else {
+                buf.push(p);
+            }
+        }
+        buf
+    }
+}
