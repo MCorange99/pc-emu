@@ -1,10 +1,13 @@
 mod fs;
 mod shell;
+mod hasm;
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 use std::cell::UnsafeCell;
 
+
+pub const MEM_SIZE: usize = 1024 * 1024;
 
 pub mod machine_status_bits {
     pub const MS_SHOULD_EXIT: usize = 0b0000_0001;
@@ -12,7 +15,7 @@ pub mod machine_status_bits {
 
 pub static mut MACHINE_STATUS: Mutex<UnsafeCell<usize>> = Mutex::new(UnsafeCell::new(0));
 
-pub static mut PROG_MEM: Mutex<UnsafeCell<[u8; 1024 * 1024]>> = Mutex::new(UnsafeCell::new([0; 1024 * 1024]));// 1mb
+pub static mut PROG_MEM: Mutex<UnsafeCell<[u8; 1024 * 1024]>> = Mutex::new(UnsafeCell::new([0; MEM_SIZE]));// 1mb
 
 ///  # Program memory
 ///  Make sure the unlock goes out of scope asap

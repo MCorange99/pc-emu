@@ -6,7 +6,7 @@ use std::{fmt::Write, sync::Mutex, path::PathBuf};
 use color_eyre::Result;
 use lazy_static::lazy_static;
 use shlex;
-
+use super::hasm::HasmRunner;
 
 
 lazy_static!{
@@ -21,7 +21,8 @@ pub struct Shell {
     pub reading_input: bool,
     pub input_buf: String,
     pub should_exit: bool,
-    pub cwd: PathBuf
+    pub cwd: PathBuf,
+    pub hasm_runner: HasmRunner,
 }
 
 impl Shell {
@@ -32,6 +33,7 @@ impl Shell {
             input_buf: String::new(),
             should_exit: false,
             cwd: PathBuf::from("/"),
+            hasm_runner: HasmRunner::new(crate::runner::MEM_SIZE)
         }
     }
 
@@ -53,6 +55,11 @@ impl Shell {
         self.input_buf.clear();
         write!(screen, "[{}] >>", self.cwd.to_str().unwrap())?;
         self.reading_input = true;
+        Ok(())
+    }
+
+
+    fn run_app() -> Result<()> {
         Ok(())
     }
     
