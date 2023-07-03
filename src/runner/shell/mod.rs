@@ -7,7 +7,7 @@ use color_eyre::Result;
 use lazy_static::lazy_static;
 use shlex;
 use super::hasm::HasmRunner;
-
+use super::fs::HgPath;
 
 lazy_static!{
     static ref RET_CODE: Mutex<usize> = Mutex::from(0);
@@ -41,25 +41,45 @@ impl Shell {
 
     }
 
-    pub fn step(&mut self, screen: &mut Screen) -> Result<()>{
+    pub fn step(&mut self, screen: &mut Screen, hasm: &mut HasmRunner) -> Result<()>{
         if self.reading_input {
             return Ok(());
         }
-        if !self.input_buf.trim().is_empty() {
+        let argv: Vec<String> = shlex::split(self.input_buf.trim()).unwrap();
+
+
+        let (is_builtin, ret_code) = if !self.input_buf.trim().is_empty() {
             
-            let argv: Vec<String> = shlex::split(self.input_buf.trim()).unwrap();
-            let (_is_builtin, _ret) = builtin::run_command(screen, self, argv)?;
-        }
+            builtin::run_command(screen, self, argv.clone())?
+        } else {(false, 0)};
         
 
+        if !is_builtin && !argv.is_empty() {
+            let bins = std::fs::read_dir(PathBuf::from("/bin").get_host_path())?;
+
+            for f in bins {
+                let f = f?;
+                if f.file_name().to_string_lossy().to_string() == argv[0] {
+                    self.run_app(argv[0].clone(), std::fs::read_to_string(f.path())?, hasm, screen)?;
+                }
+            }
+        }
+
         self.input_buf.clear();
-        write!(screen, "[{}] >>", self.cwd.to_str().unwrap())?;
+        write!(screen, "[{}] >>", ret_code)?;
         self.reading_input = true;
         Ok(())
     }
 
 
-    fn run_app() -> Result<()> {
+    fn run_app(&mut self, file_name: String, data: String, hasm: &mut HasmRunner, s: &mut Screen) -> Result<()> {
+        let ret = hasm.run_program(data, file_name);
+
+        if let Err(e) = ret {
+            writeln!(s, "{}", e.to_string())?;
+        }
+
+
         Ok(())
     }
     

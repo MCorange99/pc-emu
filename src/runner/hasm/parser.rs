@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use color_eyre::Result;
 use parse_int;
 
@@ -8,8 +10,7 @@ pub struct Parser {
     tokens: Vec<types::Token>,
     line: usize,
     file: String,
-    deref_count: usize,
-    labels: Vec<String>
+    labels: HashMap<String, types::HasmSize>
 }
 
 impl Parser {
@@ -19,8 +20,7 @@ impl Parser {
             tokens: vec![],
             line: 0,
             file,
-            deref_count: 0,
-            labels: vec![]
+            labels: HashMap::new()
         }
     }
 
@@ -44,7 +44,7 @@ impl Parser {
 
     pub fn parse(&mut self) -> Result<&mut Self> {
         let mut ip = 0;
-        for (i, mut line) in self.code.clone().lines().enumerate() {
+        for (_, mut line) in self.code.clone().lines().enumerate() {
 
             if line.trim().is_empty() {
                 continue;
@@ -58,15 +58,13 @@ impl Parser {
             
             line = &line[col..].trim();
             
-            println!("line: {line:?}");
             
             if &line.trim() == &":" {
-                self.tokens.push(types::Token::new(self.loc(), types::TokenType::Label(instruction_name.clone(), ip)));
-                println!("g: {instruction_name}");
-                self.labels.push(instruction_name);
+                self.labels.insert(instruction_name.clone(), ip as u32);
+                self.tokens.push(types::Token::new(self.loc(), types::TokenType::Label(instruction_name, ip)));
+                ip += 1;
                 continue;
             }
-            println!("should never print if g exists");
 
 
             
@@ -81,17 +79,15 @@ impl Parser {
                 line = &line[self.find_char(&line, 0, |_, c|c != ',' && c != ' ' && c != '\t')..];
             }
 
-            println!("a: {line:?}");
             
             if !line.is_empty() {
                 let arg_pos = self.find_char(&line, 0, |_, c|c == ',');
                 arg2 = Some(self.parse_arg(&line[..arg_pos].trim())?);
                 // line = &line[arg_pos+1..].trim();
             }
-            println!("b: {line:?}");
             
             
-            let instruction= self.get_instruction_type(&instruction_name, &self.loc(), arg1, arg2)?;
+            let instruction= self.get_instruction_type(&instruction_name, arg1, arg2)?;
             self.tokens.push(types::Token::new(self.loc(), instruction));
             ip += 1;
         }
@@ -104,27 +100,26 @@ impl Parser {
         }
 
         match s {
-            "r0" => return Ok(types::ArgType::Register(types::Register::r0)),
-            "r1" => return Ok(types::ArgType::Register(types::Register::r1)),
-            "r2" => return Ok(types::ArgType::Register(types::Register::r2)),
-            "r3" => return Ok(types::ArgType::Register(types::Register::r3)),
-            "r4" => return Ok(types::ArgType::Register(types::Register::r4)),
-            "r5" => return Ok(types::ArgType::Register(types::Register::r5)),
-            "r6" => return Ok(types::ArgType::Register(types::Register::r6)),
-            "r7" => return Ok(types::ArgType::Register(types::Register::r7)),
-            "r8" => return Ok(types::ArgType::Register(types::Register::r8)),
-            "r9" => return Ok(types::ArgType::Register(types::Register::r9)),
-            "rsp" => return Ok(types::ArgType::Register(types::Register::rsp)),
+            "r0" => return Ok(types::ArgType::Register(types::Register::R0)),
+            "r1" => return Ok(types::ArgType::Register(types::Register::R1)),
+            "r2" => return Ok(types::ArgType::Register(types::Register::R2)),
+            "r3" => return Ok(types::ArgType::Register(types::Register::R3)),
+            "r4" => return Ok(types::ArgType::Register(types::Register::R4)),
+            "r5" => return Ok(types::ArgType::Register(types::Register::R5)),
+            "r6" => return Ok(types::ArgType::Register(types::Register::R6)),
+            "r7" => return Ok(types::ArgType::Register(types::Register::R7)),
+            "r8" => return Ok(types::ArgType::Register(types::Register::R8)),
+            "r9" => return Ok(types::ArgType::Register(types::Register::R9)),
+            "rsp" => return Ok(types::ArgType::Register(types::Register::Rsp)),
             _ => ()
         };
 
-        if self.labels.contains(&s.to_string()) {
+        if self.labels.contains_key(&s.to_string()) {
             return Ok(types::ArgType::Label(s.to_string()));
         }
 
-        println!("d: {s}");
-        let Ok(num) = parse_int::parse(s) else {
-            return Err(color_eyre::eyre::eyre!("Unknown label {s:?}"));
+        let Ok(num) = parse_int::parse::<types::HasmSize>(s) else {
+            return Err(color_eyre::eyre::eyre!("{}: Unknown label {s:?}", self.loc().human()));
         };
         
         Ok(types::ArgType::IntLiteral(num))
@@ -132,13 +127,15 @@ impl Parser {
     }
 
     fn loc(&self) -> types::Loc {
-        (self.file.clone(), self.line)
+        types::Loc(self.file.clone(), self.line)
     }
 
-    fn get_instruction_type(&mut self, s: &str, loc: &types::Loc, arg1: Option<types::ArgType>, arg2: Option<types::ArgType>) -> Result<types::TokenType> {
+    fn get_instruction_type(&mut self, s: &str, arg1: Option<types::ArgType>, arg2: Option<types::ArgType>) -> Result<types::TokenType> {
         match s.to_lowercase().as_str() {
             "syscall" => Ok(types::TokenType::Syscall                               ),
-            "mov"     => Ok(types::TokenType::Mov     (arg1.unwrap(), arg2.unwrap())),
+            "movb"     => Ok(types::TokenType::Movb     (arg1.unwrap(), arg2.unwrap())),
+            "movw"     => Ok(types::TokenType::Movw     (arg1.unwrap(), arg2.unwrap())),
+            "movdw"     => Ok(types::TokenType::Movdw     (arg1.unwrap(), arg2.unwrap())),
             "jmp"     => Ok(types::TokenType::Jmp     (arg1.unwrap()               )),
             "section" => Ok(types::TokenType::Section (arg1.unwrap()               )),
             "add"     => Ok(types::TokenType::Add     (arg1.unwrap(), arg2.unwrap())),
@@ -153,13 +150,16 @@ impl Parser {
             "ge"      => Ok(types::TokenType::Ge      (arg1.unwrap(), arg2.unwrap())),
             
             
-            i => Err(color_eyre::eyre::eyre!("Unknown instruction {i}"))
+            i => Err(color_eyre::eyre::eyre!("{}: Unknown instruction {i}", self.loc().human()))
         }
     }
 
 
 
-    pub fn get_program_tokes(&mut self) -> Vec<types::Token> {
-        self.tokens.clone()
+    pub fn get_program(&mut self) -> types::Program {
+        types::Program{
+            tokens: self.tokens.clone(),
+            labels: self.labels.clone(),
+        }
     }
 }

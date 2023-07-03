@@ -1,18 +1,18 @@
 
 
-struct Io {
-    readline_waiting: bool
-}
+// struct Io {
+//     readline_waiting: bool
+// }
 
-impl Io {
+// impl Io {
     
-    pub fn new() -> Self {
-        Self {
-            readline_waiting: false,
-        }
-    }
+//     pub fn new() -> Self {
+//         Self {
+//             readline_waiting: false,
+//         }
+//     }
 
-}
+// }
 
 
 // #[macro_export]

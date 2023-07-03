@@ -41,7 +41,7 @@ impl Emulator {
 
 
     pub fn step(&mut self) -> Result<()> {
-        self.runner.shell.step(&mut self.screen)?;
+        self.runner.shell.step(&mut self.screen, &mut self.runner.hasm)?;
 
         Ok(())
     }

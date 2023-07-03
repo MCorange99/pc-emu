@@ -6,6 +6,8 @@ use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 use std::cell::UnsafeCell;
 
+use crate::screen::Screen;
+use color_eyre::Result;
 
 pub const MEM_SIZE: usize = 1024 * 1024;
 
@@ -32,8 +34,8 @@ pub unsafe fn get_prog_mem<'a>() -> &'a mut [u8]{
 #[derive(Debug, Clone)]
 pub struct Runner {
     // fs: fs::Fs,
-    pub shell: shell::Shell
-    
+    pub shell: shell::Shell,
+    pub hasm: hasm::HasmRunner
 }
 
 impl Runner {
@@ -45,6 +47,7 @@ impl Runner {
         Self {
             // fs: fs::Fs::new(),
             shell: shell::Shell::new(),
+            hasm: hasm::HasmRunner::new(MEM_SIZE)
         }
     }
 
@@ -53,5 +56,8 @@ impl Runner {
         &mut *prog_mem.get()
     }
 
-
+    pub fn step(&mut self, screen: &mut Screen) -> Result<()>{
+        self.shell.step(screen, &mut self.hasm)?;
+        Ok(())
+    }
 }

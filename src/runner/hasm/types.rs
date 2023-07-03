@@ -1,20 +1,23 @@
+use std::collections::HashMap;
 
+
+pub type HasmSize = u32;
 
 
 #[derive(Debug, Clone)]
 pub enum Register {
-    r0 = 0,
-    r1 = 1,
-    r2 = 2,
-    r3 = 3,
-    r4 = 4,
-    r5 = 5,
-    r6 = 6,
-    r7 = 7,
-    r8 = 8,
-    r9 = 9,
-    rsp = 10,
-    eq_flag = 11
+    R0 = 0,
+    R1 = 1,
+    R2 = 2,
+    R3 = 3,
+    R4 = 4,
+    R5 = 5,
+    R6 = 6,
+    R7 = 7,
+    R8 = 8,
+    R9 = 9,
+    Rsp = 10,
+    EqFlag = 11
 }
 
 impl Register {
@@ -23,10 +26,12 @@ impl Register {
         x
     }
 }
+
+
 #[derive(Debug, Clone)]
 pub enum ArgType {
     Register(Register),
-    IntLiteral(usize),
+    IntLiteral(HasmSize),
     Deref(Box<ArgType>),
     Label(String),
     Section(SectionType),
@@ -42,7 +47,7 @@ pub enum SectionType {
     None
 }
 #[derive(Debug, Clone)]
-
+#[allow(dead_code)]
 //* Currently only implementing write, to see if it works
 pub enum Syscalls {
     Read = 0,
@@ -52,16 +57,28 @@ pub enum Syscalls {
     Stat = 4,
 }
 
+#[allow(dead_code)]
+
 impl Syscalls {
     pub fn from_usize(i: usize) -> Self {
         let x: Syscalls = unsafe { std::mem::transmute(i as i8) };
         x
     }
 }
+
+
+
+// byte u8
+// word: u16
+// dword: u32
+//
+//
 #[derive(Debug, Clone)]
 pub enum TokenType {
     // data moving
-    Mov(ArgType, ArgType),
+    Movb(ArgType, ArgType),
+    Movw(ArgType, ArgType),
+    Movdw(ArgType, ArgType),
 
     // Math
     Add(ArgType, ArgType),
@@ -91,7 +108,14 @@ pub struct Token {
     pub typ: TokenType
 }
 
-pub type Loc = (String, usize);
+#[derive(Debug, Clone)]
+pub struct Loc(pub String, pub usize);
+
+impl Loc {
+    pub fn human(self) -> String {
+        format!("{}:{}", self.0, self.1)
+    }
+}
 
 impl Token {
     pub fn new(loc: Loc, typ: TokenType) -> Self {
@@ -103,5 +127,17 @@ impl Token {
 
     pub fn loc(&self) -> &Loc {
         &self.loc
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Program {
+    pub tokens: Vec<Token>,
+    pub labels: HashMap<String, HasmSize>
+}
+
+impl Default for Program {
+    fn default() -> Self {
+        Self { tokens: Default::default(), labels: Default::default() }
     }
 }
