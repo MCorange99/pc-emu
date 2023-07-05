@@ -60,7 +60,9 @@ impl Shell {
             for f in bins {
                 let f = f?;
                 if f.file_name().to_string_lossy().to_string() == argv[0] {
-                    self.run_app(argv[0].clone(), std::fs::read_to_string(f.path())?, hasm, screen)?;
+                    if let Err(e) = self.run_app(argv[0].clone(), std::fs::read(f.path())?, hasm, screen) { 
+                        writeln!(screen, "Error running program:\n{}", e.to_string())?;
+                    }
                 }
             }
         }
@@ -72,7 +74,7 @@ impl Shell {
     }
 
 
-    fn run_app(&mut self, file_name: String, data: String, hasm: &mut HasmRunner, s: &mut Screen) -> Result<()> {
+    fn run_app(&mut self, file_name: String, data: Vec<u8>, hasm: &mut HasmRunner, s: &mut Screen) -> Result<()> {
         let ret = hasm.run_program(data, file_name);
 
         if let Err(e) = ret {

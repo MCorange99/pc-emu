@@ -1,146 +1,183 @@
+use std::collections::HashMap;
+
 use color_eyre::{Result, eyre};
 
-use self::types::Program;
+use self::types::{Program, ArgType};
 
 use super::get_prog_mem;
 
 
 pub mod types;
 mod alloc;
-mod parser;
+pub mod parser;
 
 
 #[derive(Debug, Clone)]
 pub struct HasmRunner {
-    //         [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, rsp, eq_flag]
-    pub registers: [types::HasmSize; 12],
+    //         [r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, rsp, eq_flag, lt_flag, gt_flag]
+    pub registers: [types::HasmSize; 14],
     pub allocator: alloc::Allocator,
-    pub program: Program
-
+    pub program: Program,
+    pub ro_data_labels: HashMap<String, types::HasmSize>,
+    pub data_labels: HashMap<String, types::HasmSize>
 }
 
 impl HasmRunner {
     pub fn new(mem_size: usize) -> Self {
         Self {
-            registers: [0; 12],
+            registers: [0; 14],
             allocator: alloc::Allocator::new(mem_size),
             program: Program::default(),
+            ro_data_labels: HashMap::new(),
+            data_labels: HashMap::new(),
         }
     }
 
-    pub fn run_program(&mut self, code: String, file: String) -> Result<()>{
-        let mut parser = parser::Parser::new(code, file);
-        parser.parse()?;
-        self.program = parser.get_program();
+    pub fn run_program(&mut self, mut code: Vec<u8>, _: String) -> Result<()>{
 
+        if !(code[0] == b'.' && code[1] == b'H' && code[2] == b'A' && code[3] == b'S' && code[4] == b'M') {
+            return Err(eyre::eyre!("Not a HASM executable"));
+        }
+
+        code = code[5..].to_vec();
+
+        self.program = bincode::deserialize(&code)?;
+        self.load_data_into_mem()?;
         self.run()?;
         Ok(())
     }
 
 
-    fn run(&mut self) -> Result<()> {
-
-        
-        let Some(ip) = self.program.labels.get("_start".into()) else {
+    fn run(&mut self) -> Result<()> {        
+        let Some(ip) = self.program.text.labels.get("_start".into()) else {
             return Err(eyre::eyre!("Cannot find label '_start'"));
         };
         let mut ip = ip.clone() as usize;
 
-        while ip < self.program.tokens.len() {
-            let op = &self.program.tokens[ip];
+        while ip < self.program.text.tokens.len() {
+            let op = &self.program.text.tokens[ip].clone();
 
             match &op.typ {
-                types::TokenType::Movb(arg1, arg2) => {
-                    let val: types::HasmSize = match arg2 {
-                        types::ArgType::Register(a) => {
-                            self.registers[a.clone() as usize]
-                        },
-                        types::ArgType::IntLiteral(a) => a.clone(),
-                        types::ArgType::Deref(a) => {
-                            self.clone().read_ref(1, a.as_ref().clone())?
-                        },
-                        types::ArgType::Label(_) => todo!(),
-                        types::ArgType::Section(_) => return Err(eyre::eyre!("Cannot read value of type {arg2:?}")),
-                        types::ArgType::None => unreachable!(),
-                    };
+                types::TokenType::Mov(size, arg1, arg2) => {
+                    println!("Mov");
+                    let val = self.read_arg(arg2, size)?;
 
-                    self.write_ref(1, arg1.clone(), val)?;
+                    self.write_ref(size.clone(), arg1.clone(), val)?;
 
                 },
-                types::TokenType::Movw(arg1, arg2) => {
-                    let val: types::HasmSize = match arg2 {
-                        types::ArgType::Register(a) => {
-                            self.registers[a.clone() as usize]
-                        },
-                        types::ArgType::IntLiteral(a) => a.clone(),
-                        types::ArgType::Deref(a) => {
-                            self.clone().read_ref(2, a.as_ref().clone())?
-                        },
-                        types::ArgType::Label(_) => todo!(),
-                        types::ArgType::Section(_) => return Err(eyre::eyre!("Cannot read value of type {arg2:?}")),
-                        types::ArgType::None => unreachable!(),
-                    };
+                types::TokenType::Add(size, arg1, arg2) => {
+                    println!("Add");
+                    let val1 = self.read_arg(arg1, size)?;
+                    let val2 = self.read_arg(arg2, size)?;
+                    
 
-                    self.write_ref(2, arg1.clone(), val)?;
+                    let val = val1 + val2;
+
+                    self.write_ref(size.clone(), arg1.clone(), val)?;
+                },
+                types::TokenType::Sub(size, arg1, arg2) => {
+                    println!("Sub");
+                    let val1 = self.read_arg(arg1, size)?;
+                    let val2 = self.read_arg(arg2, size)?;
+                    
+
+                    let val = val1 - val2;
+
+                    self.write_ref(size.clone(), arg1.clone(), val)?;
+                    
+                },
+                types::TokenType::Mul(size, arg1, arg2) => {
+                    println!("Mul");
+                    let val1 = self.read_arg(arg1, size)?;
+                    let val2 = self.read_arg(arg2, size)?;
+                    
+
+                    let val = val1 * val2;
+
+                    self.write_ref(size.clone(), arg1.clone(), val)?;
+                    
+                },
+                types::TokenType::Div(size, arg1, arg2) => {
+                    println!("Div");
+                    let val1 = self.read_arg(arg1, size)?;
+                    let val2 = self.read_arg(arg2, size)?;
+                    
+
+                    let val = val1 / val2;
+
+                    self.write_ref(size.clone(), arg1.clone(), val)?;
+                    
+                },
+                types::TokenType::Cmp(size, arg1, arg2) => {
+                    println!("Cmp");
+                    let val1 = self.read_arg(arg1, size)?;
+                    let val2 = self.read_arg(arg2, size)?;
+
+                    
+                    self.registers[types::Register::GtFlag as usize] = (val1 >  val2) as types::HasmSize;
+                    self.registers[types::Register::LtFlag as usize] = (val1 <  val2) as types::HasmSize;
+                    self.registers[types::Register::EqFlag as usize] = (val1 == val2) as types::HasmSize;
+
+                }
+                types::TokenType::Je(arg1) => {
+                    println!("Je");
+
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    if self.registers[types::Register::EqFlag as usize] == 1 {
+                        ip = addr as usize;
+                    }
 
                 },
-                types::TokenType::Movdw(arg1, arg2) => {
-                    let val: types::HasmSize = match arg2 {
-                        types::ArgType::Register(a) => {
-                            self.registers[a.clone() as usize]
-                        },
-                        types::ArgType::IntLiteral(a) => a.clone(),
-                        types::ArgType::Deref(a) => {
-                            self.clone().read_ref(4, a.as_ref().clone())?
-                        },
-                        types::ArgType::Label(_) => todo!(),
-                        types::ArgType::Section(_) => return Err(eyre::eyre!("Cannot read value of type {arg2:?}")),
-                        types::ArgType::None => unreachable!(),
-                    };
-
-                    self.write_ref(4, arg1.clone(), val)?;
-
+                types::TokenType::Jne(arg1) => {
+                    println!("Jne");
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    if self.registers[types::Register::EqFlag as usize] == 0 {
+                        ip = addr as usize;
+                    }
                 },
-                types::TokenType::Add(_, _) => {
-
+                types::TokenType::Jgt(arg1) => {
+                    println!("Jgt");
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    if self.registers[types::Register::GtFlag as usize] == 1 {
+                        ip = addr as usize;
+                    }
                 },
-                types::TokenType::Sub(_, _) => {
-
+                types::TokenType::Jlt(arg1) => {
+                    println!("Jlt");
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    if self.registers[types::Register::LtFlag as usize] == 1 {
+                        ip = addr as usize;
+                    }
                 },
-                types::TokenType::Eq(_, _) => {
-
+                types::TokenType::Jge(arg1) => {
+                    println!("Jge");
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    if self.registers[types::Register::EqFlag as usize] == 1 ||
+                        self.registers[types::Register::GtFlag as usize] == 1 {
+                        ip = addr as usize;
+                    }
                 },
-                types::TokenType::Neq(_, _) => {
-
+                types::TokenType::Jle(arg1) => {
+                    println!("Jle");
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    if self.registers[types::Register::EqFlag as usize] == 1 ||
+                        self.registers[types::Register::LtFlag as usize] == 1 {
+                        ip = addr as usize;
+                    }
                 },
-                types::TokenType::Lt(_, _) => {
-
-                },
-                types::TokenType::Gt(_, _) => {
-
-                },
-                types::TokenType::Le(_, _) => {
-
-                },
-                types::TokenType::Ge(_, _) => {
-
-                },
-                types::TokenType::Je(_) => {
-
-                },
-                types::TokenType::Jne(_) => {
-
-                },
-                types::TokenType::Jmp(_) => {
-
-                },
-                types::TokenType::Section(_) => {
-
+                types::TokenType::Jmp(arg1) => {
+                    println!("Jmp");
+                    let addr = self.read_arg(arg1, &types::TokenSize::DoubleWord)?;
+                    ip = addr as usize;
                 },
                 types::TokenType::Syscall => {
+                    println!("Syscall");
 
                 },
-                types::TokenType::Label(_, _) => ()
+                types::TokenType::Label(_, _) => {
+                    println!("Label");
+
+                },
             }
 
 
@@ -151,52 +188,39 @@ impl HasmRunner {
         Ok(())
     }
 
-    fn read_ref(&mut self, bytes: u8, at: types::ArgType) -> Result<types::HasmSize>  {
-        match at {
-            types::ArgType::Register(r) => {
-                unsafe {
-                    let mut ret: types::HasmSize = 0;
-                    let addr = self.registers[r.clone() as usize].clone() as usize;
-                    // 
-                    ret = ret | get_prog_mem()[addr] as types::HasmSize;
-                    ret = ret << 8;
-                    if bytes >= 2 {
-                        ret = ret | get_prog_mem()[addr + 1] as types::HasmSize;
-                        ret = ret << 8;
-                    }
-                    if bytes >= 3 {
-                        ret = ret | get_prog_mem()[addr + 2] as types::HasmSize;
-                        ret = ret << 8;
-                    }
-
-                    if bytes >= 4 {
-                        ret = ret | get_prog_mem()[addr + 3] as types::HasmSize;
-                    }
-
-                    Ok(ret)
+    fn read_arg(&mut self, arg: &ArgType, size: &types::TokenSize) -> Result<types::HasmSize> {
+        match arg {
+            types::ArgType::Register(a) => {
+                Ok(self.registers[a.clone() as usize])
+            },
+            types::ArgType::IntLiteral(a) => Ok(a.clone()),
+            types::ArgType::Deref(a) => {
+                self.clone().read_ref(size.clone(), a.as_ref().clone())
+            },
+            types::ArgType::Label(l) => {
+                if let Some(lb) = self.program.text.labels.get(l) {
+                    Ok(*lb)
+                } else if let Some(_) = self.program.rodata.labels.get(l) {
+                    Ok(*self.ro_data_labels.get(l).unwrap())
+                } else if let Some(_) = self.program.data.labels.get(l) {
+                    Ok(*self.data_labels.get(l).unwrap())
+                } else {
+                    unreachable!()
                 }
             }
+            types::ArgType::Section(_) => return Err(eyre::eyre!("Cannot read value of type {arg:?}")),
+            types::ArgType::None => unreachable!(),
+        }
+    }
+
+    fn read_ref(&mut self, bytes: types::TokenSize, at: types::ArgType) -> Result<types::HasmSize>  {
+        match at {
+            types::ArgType::Register(r) => {
+                let addr = self.registers[r.clone() as usize].clone();
+                Ok(self.mem_read(addr, bytes))
+            }
             types::ArgType::IntLiteral(r) => {
-                unsafe {
-                    let mut ret: types::HasmSize = 0;
-
-                    ret = ret | get_prog_mem()[r.clone() as usize ] as types::HasmSize;
-                    ret <<= 8;
-                    if bytes >= 2 {
-                        ret = ret | get_prog_mem()[r.clone() as usize + 1] as types::HasmSize;
-                        ret <<= 8;
-                    }
-                    if bytes >= 3 {
-                        ret = ret | get_prog_mem()[r.clone() as usize + 2] as types::HasmSize;
-                        ret <<= 8;
-                    }
-
-                    if bytes >= 4 {
-                        ret = ret | get_prog_mem()[r.clone() as usize + 3] as types::HasmSize;
-                    }
-
-                    Ok(ret)
-                }
+                Ok(self.mem_read(r, bytes))
             },
             types::ArgType::Deref(a) => self.read_ref(bytes, a.as_ref().clone()),
             types::ArgType::Label(_) => todo!(),
@@ -205,74 +229,93 @@ impl HasmRunner {
         }
     }
 
-    fn write_ref(&mut self, bytes: u8, target: types::ArgType, mut val: types::HasmSize) -> Result<()>  {
+    fn write_ref(&mut self, bytes: types::TokenSize, target: types::ArgType, val: types::HasmSize) -> Result<()>  {
         match target {
             types::ArgType::Register(r) => {
-                unsafe {
-                    let addr = self.registers[r.clone() as usize ].clone() as usize;
-
-                    if bytes == 1 {
-                        get_prog_mem()[addr] = val as u8;
-                    } else
-                    if bytes == 2 {
-                        get_prog_mem()[addr] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[addr + 1] = val as u8 & 0xff;
-                    } else
-                    if bytes == 3 {
-                        get_prog_mem()[addr] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[addr + 1] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[addr + 2] = val as u8 & 0xff;
-                    } else
-                    if bytes == 4 {
-                        get_prog_mem()[addr] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[addr + 1] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[addr + 2] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[addr + 3] = val as u8 & 0xff;
-                    }
-
-                    Ok(())
-                }
+                let addr = self.registers[r.clone() as usize ].clone();
+                self.mem_write(addr, val, bytes);
+                Ok(())
             }
             types::ArgType::IntLiteral(r) => {
-                unsafe {
-                    if bytes == 1 {
-                        get_prog_mem()[r.clone() as usize] = val as u8;
-                    } else
-                    if bytes == 2 {
-                        get_prog_mem()[r.clone() as usize] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[r.clone() as usize + 1] = val as u8 & 0xff;
-                    } else
-                    if bytes == 3 {
-                        get_prog_mem()[r.clone() as usize] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[r.clone() as usize + 1] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[r.clone() as usize + 2] = val as u8 & 0xff;
-                    } else
-                    if bytes == 4 {
-                        get_prog_mem()[r.clone() as usize] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[r.clone() as usize + 1] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[r.clone() as usize + 2] = val as u8 & 0xff;
-                        val >>= 8;
-                        get_prog_mem()[r.clone() as usize + 3] = val as u8 & 0xff;
-                    }
-                    Ok(())
-                }
+                self.mem_write(r, val, bytes);
+                Ok(())
             },
             types::ArgType::Deref(a) => self.write_ref(bytes, a.as_ref().clone(), val),
             types::ArgType::Label(_) => todo!(),
             types::ArgType::Section(_) => return Err(eyre::eyre!("Cannot read value of type {target:?}")),
             types::ArgType::None => unreachable!(),
         }
+    }
+
+    fn mem_write(&mut self, addr: types::HasmSize, mut data: types::HasmSize, size: types::TokenSize) {
+        unsafe {
+            match size {
+                types::TokenSize::Byte => {
+                    get_prog_mem()[addr as usize] = data as u8;
+                },
+                types::TokenSize::Word => {
+                    get_prog_mem()[addr as usize] = data as u8;
+                    data >>= 8;
+                    get_prog_mem()[addr as usize + 1] = data as u8;
+                },
+                types::TokenSize::DoubleWord => {
+                    get_prog_mem()[addr as usize] = data as u8;
+                    data >>= 8;
+                    get_prog_mem()[addr as usize + 1] = data as u8;
+                    data >>= 8;
+                    get_prog_mem()[addr as usize + 2] = data as u8;
+                    data >>= 8;
+                    get_prog_mem()[addr as usize + 3] = data as u8;
+                },
+            }
+        }
+    }
+
+    fn mem_read(&mut self, addr: types::HasmSize, size: types::TokenSize) -> types::HasmSize {
+        unsafe {
+            let mut val: types::HasmSize = 0;
+            match size {
+                types::TokenSize::Byte => {
+                    val = get_prog_mem()[addr as usize] as types::HasmSize;
+                },
+                types::TokenSize::Word => {
+                    val |= get_prog_mem()[addr as usize + 1] as types::HasmSize;
+                    val <<= 8;
+                    val |= get_prog_mem()[addr as usize] as types::HasmSize;
+                },
+                types::TokenSize::DoubleWord => {
+                    val |= get_prog_mem()[addr as usize + 3] as types::HasmSize;
+                    val <<= 8;
+                    val |= get_prog_mem()[addr as usize + 2] as types::HasmSize;
+                    val <<= 8;
+                    val |= get_prog_mem()[addr as usize + 1] as types::HasmSize;
+                    val <<= 8;
+                    val |= get_prog_mem()[addr as usize] as types::HasmSize;
+                },
+            }
+            val
+        }
+    }
+
+    fn load_data_into_mem(&mut self) -> Result<()> {
+        for (name, label) in self.program.rodata.labels.clone() {
+            let addr = self.allocator.alloc(label.data.len()*(label.size.clone() as usize));
+
+            for byte in label.data {
+                self.mem_write(addr as types::HasmSize, byte, label.size.clone());
+            }
+            self.ro_data_labels.insert(name, addr as types::HasmSize);
+        }
+        for (name, label) in self.program.data.labels.clone() {
+            let addr = self.allocator.alloc(label.data.len()*(label.size.clone() as usize));
+
+            for byte in label.data {
+                self.mem_write(addr as types::HasmSize, byte, label.size.clone());
+            }
+            self.data_labels.insert(name, addr as types::HasmSize);
+        }
+
+        Ok(())
     }
 
 }

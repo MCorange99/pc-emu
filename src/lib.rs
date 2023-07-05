@@ -1,3 +1,4 @@
+#![feature(slice_index_methods)]
 pub mod keyboard;
 pub mod screen;
 pub mod runner;

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 
+use std::{collections::HashMap};
 
 pub type HasmSize = u32;
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Register {
     R0 = 0,
     R1 = 1,
@@ -17,8 +17,11 @@ pub enum Register {
     R8 = 8,
     R9 = 9,
     Rsp = 10,
-    EqFlag = 11
+    EqFlag = 11,
+    LtFlag = 12,
+    GtFlag = 13,
 }
+
 
 impl Register {
     pub fn from_usize(i: usize) -> Self {
@@ -28,7 +31,7 @@ impl Register {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum ArgType {
     Register(Register),
     IntLiteral(HasmSize),
@@ -38,7 +41,7 @@ pub enum ArgType {
     None
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum SectionType {
     Text,
     Data,
@@ -46,7 +49,7 @@ pub enum SectionType {
     Rss,
     None
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[allow(dead_code)]
 //* Currently only implementing write, to see if it works
 pub enum Syscalls {
@@ -73,42 +76,48 @@ impl Syscalls {
 // dword: u32
 //
 //
-#[derive(Debug, Clone)]
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TokenSize {
+    Byte = 1,
+    Word = 2,
+    DoubleWord = 4
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TokenType {
     // data moving
-    Movb(ArgType, ArgType),
-    Movw(ArgType, ArgType),
-    Movdw(ArgType, ArgType),
+    Mov(TokenSize, ArgType, ArgType),
 
     // Math
-    Add(ArgType, ArgType),
-    Sub(ArgType, ArgType),
+    Add(TokenSize, ArgType, ArgType),
+    Sub(TokenSize, ArgType, ArgType),
+    Mul(TokenSize, ArgType, ArgType),
+    Div(TokenSize, ArgType, ArgType),
     
     // comparison
-    Eq(ArgType, ArgType),
-    Neq(ArgType, ArgType),
-    Lt(ArgType, ArgType),
-    Gt(ArgType, ArgType),
-    Le(ArgType, ArgType),
-    Ge(ArgType, ArgType),
+    Cmp(TokenSize, ArgType, ArgType),
 
     // jumps
     Je(ArgType),
     Jne(ArgType),
+    Jlt(ArgType),
+    Jgt(ArgType),
+    Jle(ArgType),
+    Jge(ArgType),
     Jmp(ArgType),
 
     // special
-    Section(ArgType),
     Syscall,
     Label(String, usize),
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Token {
     pub loc: Loc,
     pub typ: TokenType
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Loc(pub String, pub usize);
 
 impl Loc {
@@ -130,14 +139,39 @@ impl Token {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Program {
-    pub tokens: Vec<Token>,
-    pub labels: HashMap<String, HasmSize>
+    pub text: ProgramText,
+    pub data: ProgramData,
+    pub rodata: ProgramData
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProgramData {
+    pub labels: HashMap<String, ProgramDataLabel>
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProgramDataLabel {
+    pub readonly: bool,
+    pub data: Vec<HasmSize>,
+    pub size: TokenSize
+}
+
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProgramText {
+    pub tokens: Vec<Token>,
+    pub labels: HashMap<String, HasmSize>,
+}
+
 
 impl Default for Program {
     fn default() -> Self {
-        Self { tokens: Default::default(), labels: Default::default() }
+        Self {
+            text: ProgramText { tokens: Default::default(), labels: Default::default() },
+            data: ProgramData { labels: HashMap::new()  },
+            rodata: ProgramData { labels: HashMap::new()  },
+        }
     }
 }

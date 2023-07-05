@@ -15,6 +15,7 @@ mod ls;
 mod mkdir;
 mod touch;
 mod rm;
+mod hsc;
 
 
 pub fn run_command(s: &mut Screen, sh: &mut Shell, args: Vec<String>) -> Result<(bool, usize)> {
@@ -32,6 +33,7 @@ pub fn run_command(s: &mut Screen, sh: &mut Shell, args: Vec<String>) -> Result<
         "mkdir" => (true, mkdir::exec(s, sh, args)?),
         "touch" => (true, touch::exec(s, sh, args)?),
         "rm" => (true, rm::exec(s, sh, args)?),
+        "hsc" => (true, hsc::exec(s, sh, args)?),
         _ => (false, 0)
     };
     Ok(ret)

@@ -185,16 +185,20 @@ fn draw_tui<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, engine: &m
 
         f.render_widget(debug_block, box_chunks[1]);
         f.render_widget(Paragraph::new(vec![
-            Line::from(Span::raw(format!("cur_pos: ({}, {})", cur_line, engine.screen.cur_col[cur_line] ))),
-            Line::from(Span::raw(format!("cur_cols:"))),
-            Line::from(Span::raw(format!("  0: {}\n",engine.screen.cur_col[0] ))),
-            Line::from(Span::raw(format!("  1: {}\n",engine.screen.cur_col[1] ))),
-            Line::from(Span::raw(format!("  2: {}\n",engine.screen.cur_col[2] ))),
-            Line::from(Span::raw(format!("  3: {}\n",engine.screen.cur_col[3] ))),
-            Line::from(Span::raw(format!("  4: {}\n",engine.screen.cur_col[4] ))),
-            Line::from(Span::raw(format!("  5: {}\n",engine.screen.cur_col[5] ))),
-            Line::from(Span::raw(format!("  6: {}\n",engine.screen.cur_col[6] ))),
-            Line::from(Span::raw(format!("inp_buf: {:?}\n",engine.runner.shell.input_buf )))
+            Line::from(Span::raw(format!("r0: {}", engine.runner.hasm.registers[0] ))),
+            Line::from(Span::raw(format!("r1: {}", engine.runner.hasm.registers[1] ))),
+            Line::from(Span::raw(format!("r2: {}", engine.runner.hasm.registers[2] ))),
+            Line::from(Span::raw(format!("r3: {}", engine.runner.hasm.registers[3] ))),
+            Line::from(Span::raw(format!("r4: {}", engine.runner.hasm.registers[4] ))),
+            Line::from(Span::raw(format!("r5: {}", engine.runner.hasm.registers[5] ))),
+            Line::from(Span::raw(format!("r6: {}", engine.runner.hasm.registers[6] ))),
+            Line::from(Span::raw(format!("r7: {}", engine.runner.hasm.registers[7] ))),
+            Line::from(Span::raw(format!("r8: {}", engine.runner.hasm.registers[8] ))),
+            Line::from(Span::raw(format!("r9: {}", engine.runner.hasm.registers[9] ))),
+            Line::from(Span::raw(format!("sp: {}", engine.runner.hasm.registers[10] ))),
+            Line::from(Span::raw(format!("eq: {}", engine.runner.hasm.registers[11] ))),
+            Line::from(Span::raw(format!("lt: {}", engine.runner.hasm.registers[12] ))),
+            Line::from(Span::raw(format!("gt: {}", engine.runner.hasm.registers[13] ))),
         ]), debug_text);
 
         f.render_widget(term_block, box_chunks[0]);
